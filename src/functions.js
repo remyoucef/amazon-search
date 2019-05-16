@@ -15,11 +15,9 @@ export async function searchPageFunction(request, requestQueue, $) {
                 const asyn = $(item)
                     .attr('data-asin');
                 const url = AMAZON_BASE_URL +
-                    $(item)
-                        .find('span[data-component-type="s-product-image"] > a[href]')
+                    $('span[data-component-type="s-product-image"] > a[href]', $(item))
                         .attr('href');
-                const isService = $(item)
-                    .find('span.a-price-whole') === undefined;
+                const isService = $('span.a-price-whole', $(item)) === undefined;
                 data.push(
                     {
                         asyn,
@@ -32,7 +30,7 @@ export async function searchPageFunction(request, requestQueue, $) {
         return data;
     };
     const items = await getSearchItemsFunction();
-    log.debug(prettyjson.render(items));
+    // log.debug(prettyjson.render(items));
     const queueOperationInfos = [];
     for (const d of items) {
         if (!d.isService) {
@@ -73,25 +71,44 @@ export async function descriptionPageFunction(request, requestQueue, $) {
     return {data: passedData, queueOperationInfo};
 }
 
+function getStringify(object) {
+    var cache = [];
+    const result = JSON.stringify(object, function(key, value) {
+        if (typeof value === 'object' && value !== null) {
+            if (cache.indexOf(value) !== -1) {
+                // Duplicate reference found
+                try {
+                    // If this value does not reference a parent it can be deduped
+                    return JSON.parse(JSON.stringify(value));
+                } catch (error) {
+                    // discard key if value cannot be deduped
+                    return;
+                }
+            }
+            // Store value in our collection
+            cache.push(value);
+        }
+        return value;
+    });
+    cache = null;
+    return result
+}
+
 export async function offersPageFunction(request, requestQueue, $) {
 
     const getPagesFunction = () => {
         let pages = [];
         const $offersPages = $('#olpOfferListColumn > * > ul.a-pagination > li');
 
-        if (!$offersPages)
+
+        if ($offersPages.get().length === 0)
             return pages;
 
-        let $offersPagesArr = Array.from(
-            $offersPages
-        );
-
         // remove first (Previous) and last (Next) elements
-        $offersPagesArr = $offersPagesArr.slice(1, $offersPagesArr.length - 1);
+        let $offersPagesArr = $offersPages.slice(1, $offersPages.length - 1);
 
-        pages = $offersPagesArr.map((li) => {
-
-            const urlPath = $('a', $(li)).attr('href');
+        pages = $offersPagesArr.map((index, li) => {
+            const urlPath = $('a', $(this)).attr('href');
 
             return {url: `${AMAZON_BASE_URL}${urlPath}`};
         });
@@ -107,11 +124,17 @@ export async function offersPageFunction(request, requestQueue, $) {
                 : $('.olpShippingPrice', $olpOffer).text().trim();
         }
 
+        function getSellerName($olpOffer) {
+            const text = $('.olpSellerName', $olpOffer).text().trim();
+            return text !== "" ? text : $('.olpSellerName * img', $olpOffer).attr('alt');
+        }
+
         $('div.olpOffer', $('#olpOfferListColumn'))
             .each((index, olpOffer) => {
                 const $olpOffer = $(olpOffer);
+
                 offers.push({
-                    sellerName: $('.olpSellerName', $olpOffer).text().trim(),
+                    sellerName: getSellerName($olpOffer),
                     offer: $('.olpOfferPrice', $olpOffer).text().trim(),
                     shipping: getShipping($olpOffer)
                 })
@@ -122,12 +145,14 @@ export async function offersPageFunction(request, requestQueue, $) {
     const nextPages = request.userData.nextPages;
     if (!nextPages) {
         const pages = await getPagesFunction();
-
+        log.debug('Init: ', getStringify(pages));
         const firstPageOffers = await getOffersFunction();
         if (pages.length === 0) {
             data = {...request.userData.data, offers: firstPageOffers}
         } else {
+            log.debug('Before: ' , getStringify(pages));
             pages.shift();
+            log.debug('After: ' + getStringify(pages));
             const req = new Apify.Request({url: pages[0].url});
             req.userData = {
                 page: OFFERS_PAGE,

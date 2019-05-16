@@ -18,11 +18,11 @@
     "@babel/preset-env": "^7.4.4"
   },
   "scripts": {
-    "start:dev": "APIFY_LOG_LEVEL=DEBUG npm run prebuild && npm run build && apify run -p",
+    "start:dev": "npm run prebuild && npm run build && npm run apify",
     "start": "node ./build/main.js",
     "build": "babel -d ./build ./src",
     "prebuild": "rm -rf build/*",
-    "apify": "apify run -p",
+    "apify": "APIFY_LOG_LEVEL=DEBUG apify run -p",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

@@ -9,7 +9,8 @@ let searchPageResult
 Apify.main(async () => {
     const input = await Apify.getInput();
     const requestQueue = await Apify.openRequestQueue();
-    await requestQueue.addRequest({url: `https://www.amazon.com/s?k=${input.keyword}&ref=nb_sb_noss`});
+    const keyword = input.keyword.replace(new RegExp(' ', 'g'), '+');
+    await requestQueue.addRequest({url: `https://www.amazon.com/s?k=${keyword}&ref=nb_sb_noss`});
 
     // Create an instance of the PuppeteerCrawler class - a crawler
     // that automatically loads the URLs in headless Chrome / Puppeteer.
