@@ -101,14 +101,19 @@ export async function offersPageFunction(request, requestQueue, $) {
     const getOffersFunction = () => {
         let offers = [];
 
+        function getShipping($olpOffer) {
+            return $('.olpShippingInfo', $olpOffer).text().includes("FREE Shipping")
+                ? "free"
+                : $('.olpShippingPrice', $olpOffer).text().trim();
+        }
+
         $('div.olpOffer', $('#olpOfferListColumn'))
             .each((index, olpOffer) => {
                 const $olpOffer = $(olpOffer);
-                const shipping = $('.olpShippingInfo * b', $olpOffer).text().trim();
                 offers.push({
                     sellerName: $('.olpSellerName', $olpOffer).text().trim(),
                     offer: $('.olpOfferPrice', $olpOffer).text().trim(),
-                    shipping: shipping.includes("FREE Shipping") ? "free" : shipping
+                    shipping: getShipping($olpOffer)
                 })
             });
         return offers;
