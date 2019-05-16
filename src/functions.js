@@ -104,15 +104,15 @@ export async function offersPageFunction(request, requestQueue, $) {
         if ($offersPages.get().length === 0)
             return pages;
 
-        // remove first (Previous) and last (Next) elements
-        let $offersPagesArr = $offersPages.slice(1, $offersPages.length - 1);
-
-        pages = $offersPagesArr.map((index, li) => {
-            const urlPath = $('a', $(this)).attr('href');
-
-            return {url: `${AMAZON_BASE_URL}${urlPath}`};
-        })
-            .get().toArray();
+        // remove first (Previous) and last (Next) elements,
+        // then extract all pages urls
+        $offersPages
+            .slice(1, $offersPages.length - 1)
+            .each((index, li) => {
+                const urlPath = $('a', $(li)).attr('href');
+                if (urlPath !== '#')
+                    pages.push({url: `${AMAZON_BASE_URL}${urlPath}`});
+            })
 
         return pages;
     };
@@ -127,6 +127,7 @@ export async function offersPageFunction(request, requestQueue, $) {
 
         function getSellerName($olpOffer) {
             const text = $('.olpSellerName', $olpOffer).text().trim();
+            log.info('SellerName: '+text)
             return text !== "" ? text : $('.olpSellerName * img', $olpOffer).attr('alt');
         }
 
@@ -146,15 +147,14 @@ export async function offersPageFunction(request, requestQueue, $) {
     const nextPages = request.userData.nextPages;
     if (!nextPages) {
         const pages = await getPagesFunction();
-        log.debug('Init: ', getStringify(pages));
+        log.info('Init: ', getStringify(pages));
         const firstPageOffers = await getOffersFunction();
         if (pages.length === 0) {
             data = {...request.userData.data, offers: firstPageOffers}
         } else {
-            log.debug('Before: ', getStringify(pages));
-            pages.shift();
-            log.debug('After: ' + getStringify(pages));
             const req = new Apify.Request({url: pages[0].url});
+            // remove next page because it's added to the request
+            pages.shift()
             req.userData = {
                 page: OFFERS_PAGE,
                 data: {...request.userData.data, offers: firstPageOffers},
@@ -172,10 +172,8 @@ export async function offersPageFunction(request, requestQueue, $) {
             const pages = nextPages;
             const offers = await getOffersFunction();
 
-            pages.shift();
-
             const req = new Apify.Request({url: pages[0].url});
-
+            pages.shift();
             req.userData = {
                 page: OFFERS_PAGE,
                 data: {

@@ -1,4 +1,4 @@
-FROM apify/actor-node-chrome
+FROM remyoucef/amazon-search-apify-actor:base
 
 # Copy source code
 COPY . ./
@@ -8,14 +8,10 @@ RUN npm --quiet set progress=false \
  && echo "Node.js version:" \
  && node --version \
  && echo "NPM version:" \
- && npm --version \
- && NODE_ENV=development npm install --no-optional \
- && echo "Build:" \
- && npm run build \
- && npm install --only=prod --no-optional
+ && npm --version
 
 
 
 # By default, the apify/actor-node-chrome image uses "npm start" to run the code.
 # You can override this behavior using the CMD instruction here:
- CMD [ "npm", "start" ]
+ CMD [ "npm","run", "start:dev" ]
