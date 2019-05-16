@@ -104,7 +104,7 @@ export async function offersPageFunction(request, requestQueue, $) {
         $('div.olpOffer', $('#olpOfferListColumn'))
             .each((index, olpOffer) => {
                 const $olpOffer = $(olpOffer);
-                const shipping = $('.olpShippingInfo > b', $olpOffer).text().trim();
+                const shipping = $('.olpShippingInfo * b', $olpOffer).text().trim();
                 offers.push({
                     sellerName: $('.olpSellerName', $olpOffer).text().trim(),
                     offer: $('.olpOfferPrice', $olpOffer).text().trim(),
