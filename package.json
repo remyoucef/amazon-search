@@ -1,0 +1,35 @@
+{
+  "name": "amazon-search",
+  "version": "1.0.0",
+  "description": "Crawl a number of web pages using headless Chrome and Puppeteer",
+  "main": "main.js",
+  "dependencies": {
+    "@babel/runtime": "^7.4.4",
+    "apify": "^0.13.3",
+    "prettyjson": "^1.2.1"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.4.4",
+    "@babel/core": "^7.4.4",
+    "@babel/node": "^7.2.2",
+    "@babel/plugin-proposal-class-properties": "^7.4.4",
+    "@babel/plugin-proposal-nullish-coalescing-operator": "^7.4.4",
+    "@babel/plugin-transform-runtime": "^7.4.4",
+    "@babel/preset-env": "^7.4.4"
+  },
+  "scripts": {
+    "start:dev": "APIFY_LOG_LEVEL=DEBUG npm run prebuild && npm run build && apify run -p",
+    "start": "node ./build/main.js",
+    "build": "babel -d ./build ./src",
+    "prebuild": "rm -rf build/*",
+    "apify": "apify run -p",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "author": "",
+  "license": "ISC",
+  "homepage": ""
+}
