@@ -12,7 +12,7 @@ export async function searchPageFunction(request, requestQueue, $) {
 
         $('[data-asin]', '[data-component-type="s-search-results"]')
             .each((index, item) => {
-                const asyn = $(item)
+                const asin = $(item)
                     .attr('data-asin');
                 const url = AMAZON_BASE_URL +
                     $('span[data-component-type="s-product-image"] > a[href]', $(item))
@@ -20,7 +20,7 @@ export async function searchPageFunction(request, requestQueue, $) {
                 const isService = $('span.a-price-whole', $(item)) === undefined;
                 data.push(
                     {
-                        asyn,
+                        asin: asin,
                         url,
                         isService
                     }
@@ -59,7 +59,7 @@ export async function descriptionPageFunction(request, requestQueue, $) {
     const data = await getDescriptionFunction();
 
 
-    const req = new Apify.Request({url: `${AMAZON_BASE_URL}/gp/offer-listing/${request.userData.data.asyn}`});
+    const req = new Apify.Request({url: `${AMAZON_BASE_URL}/gp/offer-listing/${request.userData.data.asin}`});
 
     let passedData = {...request.userData.data, ...data};
     req.userData = {
@@ -127,8 +127,7 @@ export async function offersPageFunction(request, requestQueue, $) {
 
         function getSellerName($olpOffer) {
             const text = $('.olpSellerName', $olpOffer).text().trim();
-            log.info('SellerName: '+text)
-            return text !== "" ? text : $('.olpSellerName * img', $olpOffer).attr('alt');
+            return text !== "" ? text : $('.olpSellerName img', $olpOffer).attr('alt');
         }
 
         $('div.olpOffer', $('#olpOfferListColumn'))
@@ -145,44 +144,44 @@ export async function offersPageFunction(request, requestQueue, $) {
     };
     let data, queueOperationInfo;
     const nextPages = request.userData.nextPages;
+    // !nextPages || log.debug(prettyjson.render(nextPages))
     if (!nextPages) {
         const pages = await getPagesFunction();
-        log.info('Init: ', getStringify(pages));
-        const firstPageOffers = await getOffersFunction();
+        const offers = await getOffersFunction();
         if (pages.length === 0) {
-            data = {...request.userData.data, offers: firstPageOffers}
+            data = {...request.userData.data, offers: offers}
         } else {
             const req = new Apify.Request({url: pages[0].url});
             // remove next page because it's added to the request
             pages.shift()
             req.userData = {
                 page: OFFERS_PAGE,
-                data: {...request.userData.data, offers: firstPageOffers},
+                data: {...request.userData.data, offers: offers},
                 nextPages: pages
             };
             queueOperationInfo = await requestQueue.addRequest(req)
         }
-
-
     } else {
-        // all offers extracted, now set the data and return it later
+        const offers = await getOffersFunction();
+        const mergedData = {
+            ...request.userData.data,
+            offers: [
+                ...request.userData.data.offers,
+                ...offers
+            ]
+        };
+        // we are on the last page
         if (nextPages.length === 0) {
-            data = request.userData.data
+            data = mergedData;
         } else {
-            const pages = nextPages;
-            const offers = await getOffersFunction();
 
+            const pages = nextPages;
             const req = new Apify.Request({url: pages[0].url});
             pages.shift();
+
             req.userData = {
                 page: OFFERS_PAGE,
-                data: {
-                    ...request.userData.data,
-                    offers: {
-                        ...request.userData.offers,
-                        ...offers
-                    }
-                },
+                data: mergedData,
                 nextPages: pages
             };
             queueOperationInfo = await requestQueue.addRequest(req)
