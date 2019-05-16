@@ -73,7 +73,7 @@ export async function descriptionPageFunction(request, requestQueue, $) {
 
 function getStringify(object) {
     var cache = [];
-    const result = JSON.stringify(object, function(key, value) {
+    const result = JSON.stringify(object, function (key, value) {
         if (typeof value === 'object' && value !== null) {
             if (cache.indexOf(value) !== -1) {
                 // Duplicate reference found
@@ -111,7 +111,8 @@ export async function offersPageFunction(request, requestQueue, $) {
             const urlPath = $('a', $(this)).attr('href');
 
             return {url: `${AMAZON_BASE_URL}${urlPath}`};
-        });
+        })
+            .get().toArray();
 
         return pages;
     };
@@ -150,7 +151,7 @@ export async function offersPageFunction(request, requestQueue, $) {
         if (pages.length === 0) {
             data = {...request.userData.data, offers: firstPageOffers}
         } else {
-            log.debug('Before: ' , getStringify(pages));
+            log.debug('Before: ', getStringify(pages));
             pages.shift();
             log.debug('After: ' + getStringify(pages));
             const req = new Apify.Request({url: pages[0].url});
