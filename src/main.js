@@ -13,27 +13,28 @@ Apify.main(async () => {
 
     // Create an instance of the PuppeteerCrawler class - a crawler
     // that automatically loads the URLs in headless Chrome / Puppeteer.
-    const crawler = new Apify.PuppeteerCrawler({
+    const crawler = new Apify.CheerioCrawler({
         requestQueue,
-
+        minConcurrency: 10,
+        maxConcurrency: 50,
         // launchPuppeteerOptions: {slowMo: 500},
-
+        maxRequestRetries: 1,
         // Stop crawling after several pages
         // maxRequestsPerCrawl: 10,
 
-        handlePageFunction: async ({request, page}) => {
-            log.info(`Processing ${request.url}...`);
+        handlePageFunction: async ({ request, html, $ }) => {
+            log.debug(`Processing ${request.url}...`);
             if (!request.userData.page) {
-                searchPageResult = await searchPageFunction(request, requestQueue, page);
+                searchPageResult = await searchPageFunction(request, requestQueue, $);
             } else {
                 switch (request.userData.page) {
                     case DESCRIPTION_PAGE: {
-                        const result = await descriptionPageFunction(request, requestQueue, page);
+                        const result = await descriptionPageFunction(request, requestQueue, $);
 
                         break
                     }
                     case OFFERS_PAGE: {
-                        const result = await offersPageFunction(request, requestQueue, page);
+                        const result = await offersPageFunction(request, requestQueue, $);
                         if (result.data){
                             const data = {
                                 title: result.data.title,

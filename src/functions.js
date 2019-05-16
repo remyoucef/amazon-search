@@ -1,28 +1,25 @@
 import Apify from "apify";
-const { log } = Apify.utils;
+
+const {log} = Apify.utils;
 import * as prettyjson from "prettyjson";
 import {DESCRIPTION_PAGE, OFFERS_PAGE} from "./constants";
 
 const AMAZON_BASE_URL = `https://www.amazon.com`;
 
-export async function searchPageFunction(request, requestQueue, page) {
-    const getSearchItemsFunction = (AMAZON_BASE_URL) => {
+export async function searchPageFunction(request, requestQueue, $) {
+    const getSearchItemsFunction = () => {
         const data = [];
 
-        document.querySelector('[data-component-type="s-search-results"]').querySelectorAll('[data-asin]')
-            .forEach(($item) => {
-                const asyn = $item
-                    .attributes
-                    .getNamedItem('data-asin')
-                    .value;
+        $('[data-asin]', '[data-component-type="s-search-results"]')
+            .each((index, item) => {
+                const asyn = $(item)
+                    .attr('data-asin');
                 const url = AMAZON_BASE_URL +
-                    $item
-                        .querySelector('span[data-component-type="s-product-image"] > a[href]')
-                        .attributes
-                        .getNamedItem('href')
-                        .value;
-                const isService = $item
-                    .querySelector('span.a-price-whole') === undefined;
+                    $(item)
+                        .find('span[data-component-type="s-product-image"] > a[href]')
+                        .attr('href');
+                const isService = $(item)
+                    .find('span.a-price-whole') === undefined;
                 data.push(
                     {
                         asyn,
@@ -34,18 +31,17 @@ export async function searchPageFunction(request, requestQueue, page) {
 
         return data;
     };
-    const items = await page.evaluate(getSearchItemsFunction, AMAZON_BASE_URL);
+    const items = await getSearchItemsFunction();
     log.debug(prettyjson.render(items));
-    const queueOperationInfos = []
+    const queueOperationInfos = [];
     for (const d of items) {
-        if (!d.isService)
-        {
+        if (!d.isService) {
             const req = new Apify.Request({url: d.url});
 
             req.userData = {
                 page: DESCRIPTION_PAGE,
                 data: d
-            }
+            };
             queueOperationInfos.push(await requestQueue.addRequest(req))
         }
 
@@ -53,16 +49,16 @@ export async function searchPageFunction(request, requestQueue, page) {
     return {data: items, queueOperationInfos};
 }
 
-export async function descriptionPageFunction(request, requestQueue, page) {
+export async function descriptionPageFunction(request, requestQueue, $) {
     const getDescriptionFunction = () => {
-        let $title = document.querySelector('#productTitle');
-        let $description = document.querySelector('#productDescription > p');
+        let $title = $('#productTitle');
+        let $description = $('#productDescription > p');
         return {
-            title: $title ? $title.innerText : "",
-            description: $description ? $description.innerText : ""
+            title: $title ? $title.text().trim() : "",
+            description: $description ? $description.text().trim() : ""
         };
     };
-    const data = await page.evaluate(getDescriptionFunction);
+    const data = await getDescriptionFunction();
 
 
     const req = new Apify.Request({url: `${AMAZON_BASE_URL}/gp/offer-listing/${request.userData.data.asyn}`});
@@ -71,64 +67,68 @@ export async function descriptionPageFunction(request, requestQueue, page) {
     req.userData = {
         page: OFFERS_PAGE,
         data: passedData
-    }
-    const queueOperationInfo = await requestQueue.addRequest(req)
+    };
+    const queueOperationInfo = await requestQueue.addRequest(req);
 
     return {data: passedData, queueOperationInfo};
 }
 
-export async function offersPageFunction(request, requestQueue, page) {
+export async function offersPageFunction(request, requestQueue, $) {
 
-    const getPagesFunction = (AMAZON_BASE_URL) => {
-        let pages = []
-        const $offersPages = document.querySelectorAll('#olpOfferListColumn > * > ul.a-pagination > li');
+    const getPagesFunction = () => {
+        let pages = [];
+        const $offersPages = $('#olpOfferListColumn > * > ul.a-pagination > li');
+
         if (!$offersPages)
-            return pages
+            return pages;
 
         let $offersPagesArr = Array.from(
             $offersPages
-        )
+        );
 
         // remove first (Previous) and last (Next) elements
-        $offersPagesArr = $offersPagesArr.slice(1, $offersPagesArr.length - 1)
+        $offersPagesArr = $offersPagesArr.slice(1, $offersPagesArr.length - 1);
 
-        pages = $offersPagesArr.map(($li) => {
+        pages = $offersPagesArr.map((li) => {
 
-            const urlPath = $li.querySelector('a').attributes.getNamedItem('href').value;
+            const urlPath = $('a', $(li)).attr('href');
 
             return {url: `${AMAZON_BASE_URL}${urlPath}`};
-        })
+        });
 
         return pages;
     };
     const getOffersFunction = () => {
-        let offers = []
-        let $offersSection = document.querySelector('#olpOfferListColumn');
-        $offersSection.querySelectorAll('div.olpOffer').forEach(($olpOffer) => {
-            offers.push({
-                sellerName: $olpOffer.querySelector('.olpSellerName').innerText,
-                offer: $olpOffer.querySelector('.olpOfferPrice').innerText,
-                shipping: $olpOffer.querySelector('.olpShippingInfo').innerText
-            })
-        })
+        let offers = [];
 
+        $('div.olpOffer', $('#olpOfferListColumn'))
+            .each((index, olpOffer) => {
+                const $olpOffer = $(olpOffer);
+                const shipping = $('.olpShippingInfo', $olpOffer).text().trim();
+                offers.push({
+                    sellerName: $('.olpSellerName', $olpOffer).text().trim(),
+                    offer: $('.olpOfferPrice', $olpOffer).text().trim(),
+                    shipping: shipping === "FREE Shipping" ? "free" : shipping
+                })
+            });
         return offers;
     };
-    let data, queueOperationInfo
+    let data, queueOperationInfo;
     const nextPages = request.userData.nextPages;
     if (!nextPages) {
-        const pages = await page.evaluate(getPagesFunction, AMAZON_BASE_URL);
-        const firstPageOffers = await page.evaluate(getOffersFunction);
+        const pages = await getPagesFunction();
+
+        const firstPageOffers = await getOffersFunction();
         if (pages.length === 0) {
             data = {...request.userData.data, offers: firstPageOffers}
         } else {
-            pages.shift()
+            pages.shift();
             const req = new Apify.Request({url: pages[0].url});
             req.userData = {
                 page: OFFERS_PAGE,
                 data: {...request.userData.data, offers: firstPageOffers},
                 nextPages: pages
-            }
+            };
             queueOperationInfo = await requestQueue.addRequest(req)
         }
 
@@ -139,9 +139,9 @@ export async function offersPageFunction(request, requestQueue, page) {
             data = request.userData.data
         } else {
             const pages = nextPages;
-            const offers = await page.evaluate(getOffersFunction);
+            const offers = await getOffersFunction();
 
-            pages.shift()
+            pages.shift();
 
             const req = new Apify.Request({url: pages[0].url});
 
@@ -155,7 +155,7 @@ export async function offersPageFunction(request, requestQueue, page) {
                     }
                 },
                 nextPages: pages
-            }
+            };
             queueOperationInfo = await requestQueue.addRequest(req)
         }
     }
