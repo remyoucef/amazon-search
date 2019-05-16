@@ -19,7 +19,7 @@ Apify.main(async () => {
         maxConcurrency: 50,
         // launchPuppeteerOptions: {slowMo: 500},
         maxRequestRetries: 3,
-        handlePageTimeoutSecs: 60,
+        handlePageTimeoutSecs: 120,
         // Stop crawling after several pages
         // maxRequestsPerCrawl: 10,
 
